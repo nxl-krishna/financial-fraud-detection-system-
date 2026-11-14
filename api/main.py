@@ -336,9 +336,9 @@ def predict_fraud(transaction: TransactionRequest):
             risk_level=risk_level,
             model_name="Random Forest",
             response_time_ms=response_time_ms,
-            source="API"
+            source="API",
+            feature_values=features.iloc[0].to_dict()
         )
-
         return {
             "transaction_id": transaction_id,
             "prediction": prediction,

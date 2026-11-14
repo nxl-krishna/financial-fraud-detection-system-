@@ -1,9 +1,12 @@
+
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
 import streamlit as st
 
 from app.api_client import check_api_health
@@ -12,11 +15,13 @@ from app.components.overview import render_overview
 from app.components.investigation import render_investigation
 from app.components.model_monitoring import render_model_monitoring
 from app.components.simulator import render_simulator
+from app.components.alerts import render_alert_management
 
 from src.database import (
     initialize_database,
     check_database,
     get_dashboard_metrics,
+    get_alert_metrics,
 )
 
 
@@ -40,7 +45,6 @@ st.markdown(
     """
     <style>
 
-    
         .block-container {
             padding-top: 2rem;
             padding-bottom: 3rem;
@@ -114,9 +118,7 @@ except Exception as error:
 # HEADER
 # ============================================================
 
-header_col1, header_col2 = st.columns(
-    [5, 1]
-)
+header_col1, header_col2 = st.columns([5, 1])
 
 with header_col1:
 
@@ -142,7 +144,6 @@ with header_col2:
         "↻ Refresh",
         use_container_width=True,
     ):
-
         st.rerun()
 
 
@@ -161,18 +162,15 @@ st.sidebar.caption(
 
 st.sidebar.divider()
 
-st.sidebar.markdown(
-    "**SYSTEM STATUS**"
-)
+st.sidebar.markdown("**SYSTEM STATUS**")
+
 
 # API status
 api_status = check_api_health()
 
 if api_status["online"]:
 
-    st.sidebar.success(
-        "Prediction API Online"
-    )
+    st.sidebar.success("Prediction API Online")
 
     st.sidebar.caption(
         f"Model: {api_status['model']}"
@@ -180,27 +178,25 @@ if api_status["online"]:
 
 else:
 
-    st.sidebar.error(
-        "Prediction API Offline"
-    )
+    st.sidebar.error("Prediction API Offline")
 
     st.sidebar.caption(
         api_status["message"]
     )
 
 
-# Database status
+# Database status and metrics
 if database_ready:
 
     try:
 
         db_health = check_database()
 
-        st.sidebar.success(
-            "SQLite Database Healthy"
-        )
-
         metrics = get_dashboard_metrics()
+
+        alert_metrics = get_alert_metrics()
+
+        st.sidebar.success("SQLite Database Healthy")
 
         st.sidebar.metric(
             "Recorded Transactions",
@@ -208,8 +204,13 @@ if database_ready:
         )
 
         st.sidebar.metric(
-            "Fraud Alerts",
+            "Fraud Predictions",
             f"{metrics['detected_frauds']:,}",
+        )
+
+        st.sidebar.metric(
+            "Open Investigation Alerts",
+            f"{alert_metrics['open_alerts']:,}",
         )
 
     except Exception as error:
@@ -220,9 +221,7 @@ if database_ready:
 
 else:
 
-    st.sidebar.error(
-        "Database Not Ready"
-    )
+    st.sidebar.error("Database Not Ready")
 
 
 st.sidebar.divider()
@@ -232,15 +231,14 @@ st.sidebar.divider()
 # NAVIGATION
 # ============================================================
 
-st.sidebar.markdown(
-    "**WORKSPACE NAVIGATION**"
-)
+st.sidebar.markdown("**WORKSPACE NAVIGATION**")
 
 selected_page = st.sidebar.radio(
     "Select Dashboard",
     options=[
         "Executive Overview",
         "Fraud Investigation",
+        "Fraud Alert Management",
         "Live Transaction Simulator",
         "Model Performance",
     ],
@@ -260,6 +258,11 @@ if selected_page == "Executive Overview":
 elif selected_page == "Fraud Investigation":
 
     render_investigation()
+
+
+elif selected_page == "Fraud Alert Management":
+
+    render_alert_management()
 
 
 elif selected_page == "Live Transaction Simulator":

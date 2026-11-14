@@ -2,8 +2,143 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import matplotlib.pyplot as plt
+import shap
 
 from src.database import get_transactions
+from src.shap_service import explain_transaction
+
+
+def render_shap_explanation(selected):
+
+    st.divider()
+    st.markdown("### Individual Fraud Explanation")
+
+    st.caption(
+        "SHAP explains how each model feature contributes to "
+        "the predicted fraud probability. These are model "
+        "contributions, not causal explanations."
+    )
+
+    if selected["source"] != "API":
+        st.info(
+            "SHAP explanation is available only for genuine "
+            "API prediction records. Test or other source "
+            "records are excluded."
+        )
+        return
+
+    if (
+        "feature_values_json" not in selected.index
+        or pd.isna(selected["feature_values_json"])
+    ):
+        st.warning(
+            "Original model features were not stored for this "
+            "transaction. SHAP explanation is unavailable."
+        )
+        return
+
+    try:
+        result = explain_transaction(
+            selected["feature_values_json"]
+        )
+
+    except (ValueError, RuntimeError, KeyError) as error:
+        st.error(f"Could not generate SHAP explanation: {error}")
+        return
+
+    probability = result["fraud_probability"]
+
+    st.markdown("#### Model Explanation Summary")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Model Fraud Probability",
+        f"{probability * 100:.4f}%",
+    )
+
+    col2.metric(
+        "Features Analyzed",
+        result["feature_count"],
+    )
+
+    col3.metric(
+        "SHAP Reconstruction Error",
+        f"{abs(result['fraud_probability'] - result['reconstructed_probability']):.2e}",
+    )
+
+    st.markdown("#### SHAP Waterfall Explanation")
+
+    explanation = result["explanation"]
+
+    fig, ax = plt.subplots(figsize=(11, 8))
+
+    shap.plots.waterfall(
+        explanation,
+        max_display=15,
+        show=False,
+    )
+
+    fig = plt.gcf()
+
+    st.pyplot(
+        fig,
+        use_container_width=True,
+    )
+
+    plt.close(fig)
+
+    st.caption(
+        "Positive SHAP values increase the model's fraud "
+        "score; negative SHAP values decrease it."
+    )
+
+    contributions = result["contributions"]
+
+    st.markdown("#### Top Fraud-Risk Factors")
+
+    top_features = contributions.head(10).copy()
+
+    fig = px.bar(
+        top_features.sort_values("SHAP Value"),
+        x="SHAP Value",
+        y="Feature",
+        color="Impact",
+        orientation="h",
+        color_discrete_map={
+            "Increases Fraud Risk": "#DC2626",
+            "Decreases Fraud Risk": "#16A34A",
+            "No Impact": "#64748B",
+        },
+        title="Feature Contributions to Fraud Probability",
+    )
+
+    fig.update_layout(
+        xaxis_title="SHAP Contribution",
+        yaxis_title="Model Feature",
+        legend_title="Impact",
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+    )
+
+    st.markdown("#### Complete Feature Contribution Analysis")
+
+    st.dataframe(
+        contributions[
+            [
+                "Feature",
+                "Feature Value",
+                "SHAP Value",
+                "Impact",
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
 
 
 def render_investigation():
@@ -50,29 +185,18 @@ def render_investigation():
     filter_col1, filter_col2, filter_col3 = st.columns(3)
 
     with filter_col1:
-
         classification = st.selectbox(
             "Transaction Classification",
-            options=[
-                "All",
-                "FRAUD",
-                "LEGITIMATE",
-            ],
+            options=["All", "FRAUD", "LEGITIMATE"],
         )
 
     with filter_col2:
-
         risk_level = st.selectbox(
             "Risk Level",
-            options=[
-                "All",
-                "HIGH",
-                "LOW",
-            ],
+            options=["All", "HIGH", "LOW"],
         )
 
     with filter_col3:
-
         search_id = st.text_input(
             "Search Transaction ID",
             placeholder="Enter transaction ID",
@@ -93,19 +217,16 @@ def render_investigation():
     filtered = transactions.copy()
 
     if classification != "All":
-
         filtered = filtered[
             filtered["result"] == classification
         ]
 
     if risk_level != "All":
-
         filtered = filtered[
             filtered["risk_level"] == risk_level
         ]
 
     if search_id:
-
         filtered = filtered[
             filtered["id"].str.contains(
                 search_id,
@@ -164,7 +285,6 @@ def render_investigation():
     ]
 
     if filtered.empty:
-
         st.warning(
             "No transactions match the selected filters."
         )
@@ -284,3 +404,9 @@ def render_investigation():
     }
 
     st.json(details)
+
+    # --------------------------------------------------------
+    # INDIVIDUAL SHAP EXPLANATION
+    # --------------------------------------------------------
+
+    render_shap_explanation(selected)
