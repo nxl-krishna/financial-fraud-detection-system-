@@ -1,0 +1,2 @@
+model,pr_auc,best_threshold,precision,recall,f1,true_positives,false_positives,false_negatives,true_negatives
+Isolation Forest,0.03938538028489982,0.06419588823578803,0.061224489795918366,0.4909090909090909,0.1088709677417383,27,414,28,42091
