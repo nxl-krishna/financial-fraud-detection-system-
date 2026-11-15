@@ -4,6 +4,12 @@ An end-to-end machine learning and MLOps project for detecting potentially fraud
 
 The system combines a class-weighted Random Forest classifier, transaction-level fraud risk scoring, SHAP explainability, fraud alert management, model versioning, and data drift monitoring.
 
+## 🚀 Live Demo
+
+**Live Dashboard:** https://fraud-detection-system-el0f.onrender.com
+
+The application is deployed on Render using Docker.
+
 ## Key Features
 
 - **Fraud Detection:** Random Forest classifier trained on highly imbalanced transaction data.
