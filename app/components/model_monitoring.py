@@ -64,7 +64,12 @@ def load_offline_drift_results():
 
     summary = calculate_overall_drift(results)
 
-    return results, summary, reference.shape[0], current.shape[0]
+    return (
+        results,
+        summary,
+        reference.shape[0],
+        current.shape[0],
+    )
 
 
 # ============================================================
@@ -356,9 +361,11 @@ def render_model_monitoring():
         "degradation."
     )
 
+       # --------------------------------------------------------
+    # LOAD AND DISPLAY OFFLINE DRIFT RESULTS
     # --------------------------------------------------------
-    # LOAD DRIFT RESULTS
-    # --------------------------------------------------------
+
+    offline_drift_available = False
 
     try:
 
@@ -373,231 +380,255 @@ def render_model_monitoring():
                 current_count,
             ) = load_offline_drift_results()
 
+        offline_drift_available = True
+
+    except FileNotFoundError:
+
+        st.warning(
+            "Offline historical drift analysis is unavailable "
+            "because the processed training or test datasets "
+            "are not included in this deployment."
+        )
+
+        st.info(
+            "The API, model performance report, and live "
+            "transaction monitoring can continue operating. "
+            "Offline drift analysis requires the original "
+            "processed datasets."
+        )
+
     except Exception as error:
 
         st.error(
-            f"Could not calculate data drift: {error}"
-        )
-        return
-
-    # --------------------------------------------------------
-    # OVERALL DRIFT STATUS
-    # --------------------------------------------------------
-
-    severity = drift_summary["severity"]
-
-    st.markdown("### Overall Drift Status")
-
-    if severity == "SIGNIFICANT":
-
-        st.error(
-            "Significant distribution drift detected "
-            "in the historical comparison."
-        )
-
-    elif severity == "MODERATE":
-
-        st.warning(
-            "Moderate distribution drift detected."
-        )
-
-    elif severity == "STABLE":
-
-        st.success(
-            "Feature distributions are broadly stable."
-        )
-
-    else:
-
-        st.warning(
-            "Insufficient valid data to determine overall drift."
+            f"Could not calculate offline data drift: {error}"
         )
 
     # --------------------------------------------------------
-    # DATASET COUNTS
+    # DISPLAY OFFLINE DRIFT RESULTS
     # --------------------------------------------------------
 
-    count_col1, count_col2 = st.columns(2)
+    if offline_drift_available:
 
-    count_col1.metric(
-        "Reference Training Records",
-        f"{reference_count:,}",
-    )
+        # ----------------------------------------------------
+        # OVERALL DRIFT STATUS
+        # ----------------------------------------------------
 
-    count_col2.metric(
-        "Comparison Test Records",
-        f"{current_count:,}",
-    )
+        severity = drift_summary["severity"]
 
-    # --------------------------------------------------------
-    # DRIFT SUMMARY METRICS
-    # --------------------------------------------------------
+        st.markdown("### Overall Drift Status")
 
-    st.markdown("### Feature Drift Summary")
+        if severity == "SIGNIFICANT":
 
-    drift_col1, drift_col2, drift_col3, drift_col4 = (
-        st.columns(4)
-    )
-
-    drift_col1.metric(
-        "Features Monitored",
-        drift_summary["features_monitored"],
-    )
-
-    drift_col2.metric(
-        "Stable Features",
-        drift_summary["stable_features"],
-    )
-
-    drift_col3.metric(
-        "Moderate Drift",
-        drift_summary["moderate_features"],
-    )
-
-    drift_col4.metric(
-        "Significant Drift",
-        drift_summary["significant_features"],
-    )
-
-    # --------------------------------------------------------
-    # TOP DRIFTED FEATURES
-    # --------------------------------------------------------
-
-    st.markdown("### Most Drifted Features")
-
-    valid_results = drift_results.dropna(
-        subset=["psi"]
-    )
-
-    if not valid_results.empty:
-
-        top_features = (
-            valid_results
-            .sort_values(
-                "psi",
-                ascending=False,
+            st.error(
+                "Significant distribution drift detected "
+                "in the historical comparison."
             )
-            .head(15)
-            .sort_values(
-                "psi",
-                ascending=True,
+
+        elif severity == "MODERATE":
+
+            st.warning(
+                "Moderate distribution drift detected."
             )
+
+        elif severity == "STABLE":
+
+            st.success(
+                "Feature distributions are broadly stable."
+            )
+
+        else:
+
+            st.warning(
+                "Insufficient valid data to determine overall drift."
+            )
+
+        # ----------------------------------------------------
+        # DATASET COUNTS
+        # ----------------------------------------------------
+
+        count_col1, count_col2 = st.columns(2)
+
+        count_col1.metric(
+            "Reference Training Records",
+            f"{reference_count:,}",
         )
 
-        severity_colors = {
-            "STABLE": "#2E8B57",
-            "MODERATE": "#E6A23C",
-            "SIGNIFICANT": "#D9534F",
-        }
+        count_col2.metric(
+            "Comparison Test Records",
+            f"{current_count:,}",
+        )
 
-        bar_colors = [
-            severity_colors.get(
-                value,
-                "#808080",
+        # ----------------------------------------------------
+        # DRIFT SUMMARY METRICS
+        # ----------------------------------------------------
+
+        st.markdown("### Feature Drift Summary")
+
+        drift_col1, drift_col2, drift_col3, drift_col4 = (
+            st.columns(4)
+        )
+
+        drift_col1.metric(
+            "Features Monitored",
+            drift_summary["features_monitored"],
+        )
+
+        drift_col2.metric(
+            "Stable Features",
+            drift_summary["stable_features"],
+        )
+
+        drift_col3.metric(
+            "Moderate Drift",
+            drift_summary["moderate_features"],
+        )
+
+        drift_col4.metric(
+            "Significant Drift",
+            drift_summary["significant_features"],
+        )
+
+        # ----------------------------------------------------
+        # TOP DRIFTED FEATURES
+        # ----------------------------------------------------
+
+        st.markdown("### Most Drifted Features")
+
+        valid_results = drift_results.dropna(
+            subset=["psi"]
+        )
+
+        if not valid_results.empty:
+
+            top_features = (
+                valid_results
+                .sort_values(
+                    "psi",
+                    ascending=False,
+                )
+                .head(15)
+                .sort_values(
+                    "psi",
+                    ascending=True,
+                )
             )
-            for value in top_features["severity"]
+
+            severity_colors = {
+                "STABLE": "#2E8B57",
+                "MODERATE": "#E6A23C",
+                "SIGNIFICANT": "#D9534F",
+            }
+
+            bar_colors = [
+                severity_colors.get(
+                    value,
+                    "#808080",
+                )
+                for value in top_features["severity"]
+            ]
+
+            drift_fig = go.Figure(
+                go.Bar(
+                    x=top_features["psi"],
+                    y=top_features["feature"],
+                    orientation="h",
+                    marker_color=bar_colors,
+                    text=top_features["psi"].map(
+                        lambda value: f"{value:.3f}"
+                    ),
+                    textposition="outside",
+                    hovertemplate=(
+                        "Feature: %{y}<br>"
+                        "PSI: %{x:.4f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+            drift_fig.update_layout(
+                title=(
+                    "Top 15 Features by "
+                    "Population Stability Index"
+                ),
+                xaxis_title="Population Stability Index (PSI)",
+                yaxis_title="Model Feature",
+                height=650,
+                showlegend=False,
+            )
+
+            st.plotly_chart(
+                drift_fig,
+                use_container_width=True,
+            )
+
+        else:
+
+            st.warning(
+                "No valid PSI measurements are available."
+            )
+
+        # ----------------------------------------------------
+        # FEATURE-LEVEL DRIFT TABLE
+        # ----------------------------------------------------
+
+        st.markdown("### Detailed Feature Drift Report")
+
+        display_columns = [
+            "feature",
+            "psi",
+            "severity",
+            "reference_count",
+            "current_count",
+            "missing_reference",
+            "missing_current",
         ]
 
-        drift_fig = go.Figure(
-            go.Bar(
-                x=top_features["psi"],
-                y=top_features["feature"],
-                orientation="h",
-                marker_color=bar_colors,
-                text=top_features["psi"].map(
-                    lambda value: f"{value:.3f}"
-                ),
-                textposition="outside",
-                hovertemplate=(
-                    "Feature: %{y}<br>"
-                    "PSI: %{x:.4f}"
-                    "<extra></extra>"
-                ),
+        available_columns = [
+            column
+            for column in display_columns
+            if column in drift_results.columns
+        ]
+
+        display_results = drift_results[
+            available_columns
+        ].copy()
+
+        if "psi" in display_results.columns:
+
+            display_results["psi"] = (
+                display_results["psi"].round(4)
             )
-        )
 
-        drift_fig.update_layout(
-            title="Top 15 Features by Population Stability Index",
-            xaxis_title="Population Stability Index (PSI)",
-            yaxis_title="Model Feature",
-            height=650,
-            showlegend=False,
-        )
-
-        st.plotly_chart(
-            drift_fig,
+        st.dataframe(
+            display_results,
             use_container_width=True,
+            hide_index=True,
         )
 
-    else:
+        # ----------------------------------------------------
+        # PSI INTERPRETATION
+        # ----------------------------------------------------
 
-        st.warning(
-            "No valid PSI measurements are available."
-        )
+        with st.expander(
+            "Understand PSI severity thresholds"
+        ):
 
-    # --------------------------------------------------------
-    # FEATURE-LEVEL DRIFT TABLE
-    # --------------------------------------------------------
+            st.markdown(
+                """
+                | PSI value | Interpretation |
+                |---|---|
+                | Below 0.10 | Stable |
+                | 0.10 to below 0.25 | Moderate drift |
+                | 0.25 or above | Significant drift |
 
-    st.markdown("### Detailed Feature Drift Report")
+                These are commonly used monitoring heuristics,
+                not universal statistical significance thresholds.
 
-    display_columns = [
-        "feature",
-        "psi",
-        "severity",
-        "reference_count",
-        "current_count",
-        "missing_reference",
-        "missing_current",
-    ]
-
-    available_columns = [
-        column
-        for column in display_columns
-        if column in drift_results.columns
-    ]
-
-    display_results = drift_results[
-        available_columns
-    ].copy()
-
-    if "psi" in display_results.columns:
-
-        display_results["psi"] = (
-            display_results["psi"].round(4)
-        )
-
-    st.dataframe(
-        display_results,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    # --------------------------------------------------------
-    # PSI INTERPRETATION
-    # --------------------------------------------------------
-
-    with st.expander(
-        "Understand PSI severity thresholds"
-    ):
-
-        st.markdown(
-            """
-            | PSI value | Interpretation |
-            |---|---|
-            | Below 0.10 | Stable |
-            | 0.10 to below 0.25 | Moderate drift |
-            | 0.25 or above | Significant drift |
-
-            These are commonly used monitoring heuristics,
-            not universal statistical significance thresholds.
-
-            A high PSI indicates that a feature's distribution
-            has changed. It does not automatically mean that
-            the model is inaccurate or needs retraining.
-            """
-        )
-
+                A high PSI indicates that a feature's distribution
+                has changed. It does not automatically mean that
+                the model is inaccurate or needs retraining.
+                """
+            )
 
     # --------------------------------------------------------
     # LIVE MONITORING STATUS
@@ -730,6 +761,14 @@ def render_model_monitoring():
                 use_container_width=True,
                 hide_index=True,
             )
+
+    except FileNotFoundError:
+
+        st.warning(
+            "Live drift analysis cannot run because the "
+            "training reference dataset is unavailable "
+            "in this deployment."
+        )
 
     except Exception as error:
 

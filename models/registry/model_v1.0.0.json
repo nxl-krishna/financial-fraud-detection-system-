@@ -1,0 +1,39 @@
+
+{
+  "model_id": "fraud-random-forest",
+  "model_version": "1.0.0",
+  "model_name": "Class-weighted Random Forest",
+  "algorithm": "RandomForestClassifier",
+  "artifact": "models/random_forest.joblib",
+  "artifact_sha256": "e71fdb8131ddb704b50bcf5130d15163ec8bf3d33053fcb778fe723a15ba7f5e",
+  "training_date": null,
+  "training_date_note": "Original training date was not recorded.",
+  "model_configuration": {
+    "n_estimators": 200,
+    "max_depth": 12,
+    "min_samples_split": 2,
+    "min_samples_leaf": 2,
+    "max_features": "sqrt",
+    "class_weight": "balanced_subsample",
+    "random_state": 42
+  },
+  "feature_count": 37,
+  "decision_threshold": 0.2441122105893745,
+  "evaluation": {
+    "dataset": "Chronological held-out test set",
+    "test_transactions": 42557,
+    "fraud_cases": 52,
+    "precision": 0.795918,
+    "recall": 0.75,
+    "f1_score": 0.772277,
+    "pr_auc": 0.767565,
+    "roc_auc": 0.945254,
+    "specificity": 0.999765,
+    "false_positive_rate": 0.000235,
+    "true_positives": 39,
+    "false_positives": 10,
+    "false_negatives": 13,
+    "true_negatives": 42495
+  },
+  "status": "ACTIVE"
+}

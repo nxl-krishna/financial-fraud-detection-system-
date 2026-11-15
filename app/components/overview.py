@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
@@ -94,6 +96,102 @@ def render_overview():
         )
 
         return
+        # --------------------------------------------------------
+    # ACTIVE MODEL INFORMATION
+    # --------------------------------------------------------
+
+    st.subheader("Active Fraud Detection Model")
+
+    base_dir = Path(__file__).resolve().parents[2]
+
+    registry_dir = base_dir / "models" / "registry"
+
+    active_pointer_path = registry_dir / "active_model.json"
+
+    try:
+
+        # Read the active model pointer.
+        with open(
+            active_pointer_path,
+            "r",
+            encoding="utf-8-sig",
+        ) as file:
+
+            active_pointer = json.load(file)
+
+        manifest_filename = active_pointer.get(
+            "active_model_manifest"
+        )
+
+        # Validate manifest filename.
+        if (
+            not isinstance(manifest_filename, str)
+            or not manifest_filename
+            or Path(manifest_filename).name != manifest_filename
+            or not manifest_filename.endswith(".json")
+        ):
+
+            raise ValueError(
+                "Invalid active model manifest filename."
+            )
+
+        registry_path = registry_dir / manifest_filename
+
+        if not registry_path.is_file():
+
+            raise FileNotFoundError(
+                f"Active model manifest not found: {registry_path}"
+            )
+
+        # Load the selected model manifest.
+        with open(
+            registry_path,
+            "r",
+            encoding="utf-8-sig",
+        ) as file:
+
+            model_info = json.load(file)
+
+        model_col1, model_col2, model_col3, model_col4 = st.columns(4)
+
+        model_col1.metric(
+            "Model Version",
+            model_info["model_version"],
+        )
+
+        model_col2.metric(
+            "Algorithm",
+            model_info["algorithm"],
+        )
+
+        model_col3.metric(
+            "Decision Threshold",
+            f"{float(model_info['decision_threshold']):.4f}",
+        )
+
+        model_col4.metric(
+            "Model Status",
+            model_info["status"],
+        )
+
+        st.caption(
+            f"Model: {model_info['model_name']} "
+            f"| Model ID: {model_info['model_id']}"
+        )
+
+    except (
+        FileNotFoundError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+        TypeError,
+    ) as error:
+
+        st.warning(
+            f"Unable to load active model information: {error}"
+        )
+
+    st.divider()
 
     # --------------------------------------------------------
     # FRAUD VS LEGITIMATE DISTRIBUTION

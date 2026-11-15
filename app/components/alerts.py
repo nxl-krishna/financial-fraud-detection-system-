@@ -181,18 +181,20 @@ def render_alert_management():
     )
 
     display_alerts = display_alerts.rename(
-        columns={
-            "alert_id": "Alert ID",
-            "transaction_id": "Transaction ID",
-            "status": "Status",
-            "priority": "Priority",
-            "assigned_to": "Assigned Investigator",
-            "amount": "Amount",
-            "fraud_probability": "Fraud Probability (%)",
-            "risk_level": "Risk Level",
-            "alert_created_at": "Created At",
-        }
-    )
+    columns={
+        "alert_id": "Alert ID",
+        "transaction_id": "Transaction ID",
+        "status": "Status",
+        "priority": "Priority",
+        "assigned_to": "Assigned Investigator",
+        "amount": "Amount",
+        "fraud_probability": "Fraud Probability (%)",
+        "risk_level": "Risk Level",
+        "model_name": "Model",
+        "model_version": "Model Version",
+        "alert_created_at": "Created At",
+    }
+)
 
     st.dataframe(
         display_alerts,

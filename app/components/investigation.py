@@ -274,15 +274,16 @@ def render_investigation():
     st.markdown("### Transaction Records")
 
     display_columns = [
-        "id",
-        "created_at",
-        "amount",
-        "fraud_probability",
-        "result",
-        "risk_level",
-        "model_name",
-        "source",
-    ]
+    "id",
+    "created_at",
+    "amount",
+    "fraud_probability",
+    "result",
+    "risk_level",
+    "model_name",
+    "model_version",
+    "source",
+]
 
     if filtered.empty:
         st.warning(
@@ -310,6 +311,7 @@ def render_investigation():
             "result": "Classification",
             "risk_level": "Risk Level",
             "model_name": "Model",
+            "model_version": "Model Version",
             "source": "Source",
         },
     )
