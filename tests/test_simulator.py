@@ -1,16 +1,39 @@
 
 import pandas as pd
 
-from app.components.simulator import (
-    load_simulation_data,
-    prepare_api_transaction,
-    calculate_simulation_metrics,
-)
+from app.components import simulator
 
 
-def test_simulation_data_loads_correctly():
+def make_sample_dataset():
 
-    data = load_simulation_data()
+    data = pd.DataFrame({
+        "Time": [100000.0, 100060.0, 100120.0],
+        "Amount": [100.0, 250.0, 500.0],
+        "Class": [0, 1, 0],
+    })
+
+    for i in range(1, 29):
+        data[f"V{i}"] = [0.0, 0.1, -0.1]
+
+    return data
+
+
+def test_simulation_data_loads_correctly(tmp_path, monkeypatch):
+
+    sample_data = make_sample_dataset()
+
+    sample_path = tmp_path / "test_features.csv"
+    sample_data.to_csv(sample_path, index=False)
+
+    monkeypatch.setattr(
+        simulator,
+        "TEST_DATA_PATH",
+        sample_path,
+    )
+
+    simulator.load_simulation_data.clear()
+
+    data = simulator.load_simulation_data()
 
     assert not data.empty
     assert "Time" in data.columns
@@ -18,6 +41,7 @@ def test_simulation_data_loads_correctly():
     assert "Class" in data.columns
 
     assert data["Time"].is_monotonic_increasing
+    assert len(data) == 3
 
 
 def test_api_transaction_excludes_actual_class():
@@ -32,7 +56,7 @@ def test_api_transaction_excludes_actual_class():
         },
     })
 
-    transaction = prepare_api_transaction(row)
+    transaction = simulator.prepare_api_transaction(row)
 
     assert "Class" not in transaction
     assert "Time" in transaction
@@ -61,7 +85,7 @@ def test_simulation_metrics_calculated_correctly():
         },
     ]
 
-    metrics = calculate_simulation_metrics(results)
+    metrics = simulator.calculate_simulation_metrics(results)
 
     assert metrics["transactions"] == 4
     assert metrics["fraud_alerts"] == 2
