@@ -11,6 +11,36 @@ import streamlit as st
 
 from app.api_client import check_api_health
 
+# ============================================================
+# EMBEDDED BACKEND AUTO-START (FOR STREAMLIT CLOUD / NO-DOCKER)
+# ============================================================
+@st.cache_resource
+def _start_embedded_api():
+    """Auto-start FastAPI model engine in a background thread if offline."""
+    if not check_api_health()["online"]:
+        import threading
+        import time
+        import uvicorn
+        from api.main import app as fastapi_app
+
+        config = uvicorn.Config(
+            fastapi_app,
+            host="127.0.0.1",
+            port=8000,
+            log_level="warning",
+        )
+        server = uvicorn.Server(config)
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+
+        for _ in range(10):
+            time.sleep(0.5)
+            if check_api_health()["online"]:
+                break
+
+_start_embedded_api()
+
+
 from app.components.overview import render_overview
 from app.components.investigation import render_investigation
 from app.components.model_monitoring import render_model_monitoring
